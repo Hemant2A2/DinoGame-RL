@@ -23,3 +23,5 @@ for ep in range(num_eps):
         print('Reward:', reward)
         obs = new_obs
         pygame.time.wait(50)
+        
+env.close()
