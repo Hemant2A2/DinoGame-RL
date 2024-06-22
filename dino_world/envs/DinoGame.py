@@ -35,7 +35,7 @@ class Dinosaur:
     X_POS = 80
     Y_POS = 310
     Y_POS_DUCK = 340
-    JUMP_VEL = 9
+    JUMP_VEL = 8.5
 
     def __init__(self):
         self.duck_img = DUCKING
@@ -64,15 +64,15 @@ class Dinosaur:
         if self.step_index >= 10:
             self.step_index = 0
 
-        if action == 0:  # Jump
+        if action == 0 and not self.dino_jump:  # Jump
             self.dino_duck = False
             self.dino_run = False
             self.dino_jump = True
-        elif action == 1:  # Run
+        elif action == 1 and not self.dino_jump:  # Run
             self.dino_duck = False
             self.dino_run = True
             self.dino_jump = False
-        elif action == 2:  # Duck
+        elif action == 2 and not self.dino_jump:  # Duck
             self.dino_duck = True
             self.dino_run = False
             self.dino_jump = False
@@ -209,7 +209,9 @@ class DinoGameEnv(gym.Env):
             obstacle.update()
             if self.player.dino_rect.colliderect(obstacle.rect):
                 pygame.time.delay(2000)
-                self.reward -= 5
+                # reduction in reward if the dino collides with an obstacle
+                # the second term is to ensure that dino that run longer get a higher reward
+                self.reward -= 50 + 1000/self.points
                 self.done = True
 
         self.cloud.update()
@@ -217,6 +219,7 @@ class DinoGameEnv(gym.Env):
         if self.points % 100 == 0:
             game_speed += 1
 
+        # increase in reward as the game progresses
         self.reward += self.points / 100.0
         info = {}
 
