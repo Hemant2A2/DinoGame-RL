@@ -222,11 +222,11 @@ class DinoGameEnv(gym.Env):
                 pygame.time.delay(2000)
                 # reduction in reward if the dino collides with an obstacle
                 # the second term is to ensure that dino that run longer get a higher reward
-                self.reward -= 50 + 1000 / self.points
+                self.reward -= (50 + 1000 / self.points)
                 self.done = True
             else:
                 # additonal reward for avoiding the obstacles
-                self.reward += 50
+                self.reward += 10
 
         self.cloud.update()
         self.points += 1
@@ -283,9 +283,10 @@ class DinoGameEnv(gym.Env):
         self.screen.blit(text, textRect)
 
     def _get_observation(self):
+        global obstacles
         dino_x, dino_y, dino_duck, dino_jump = self.player.get_position()
-        if self.obstacles:
-            obstacle_x, obstacle_y = self.obstacles[0].get_position()
+        if obstacles:
+            obstacle_x, obstacle_y = obstacles[0].get_position()
         else:
             obstacle_x, obstacle_y = SCREEN_WIDTH, 0  # No obstacle present
         return np.array([dino_x, dino_y, dino_duck, dino_jump, obstacle_x, obstacle_y], dtype=np.float32)
