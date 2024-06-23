@@ -5,13 +5,14 @@ import pygame
 import os
 import random
 
-
 # Initialize Pygame
 pygame.init()
 
-# Constants
+# dimentions of the screen
 SCREEN_HEIGHT = 600
 SCREEN_WIDTH = 1100
+
+# load the images of the dinosaur, obstacles and the background
 RUNNING = [pygame.image.load(os.path.join("Assets/Dino", "DinoRun1.png")),
            pygame.image.load(os.path.join("Assets/Dino", "DinoRun2.png"))]
 JUMPING = pygame.image.load(os.path.join("Assets/Dino", "DinoJump.png"))
@@ -30,6 +31,7 @@ BIRD = [pygame.image.load(os.path.join("Assets/Bird", "Bird1.png")),
 
 CLOUD = pygame.image.load(os.path.join("Assets/Other", "Cloud.png"))
 BG = pygame.image.load(os.path.join("Assets/Other", "Track.png"))
+
 
 class Dinosaur:
     X_POS = 80
@@ -50,6 +52,7 @@ class Dinosaur:
         self.jump_vel = self.JUMP_VEL
         self.image = self.run_img[0]
         self.dino_rect = self.image.get_rect()
+        # top left x,y coordinates of the rectangle surrounding the dino
         self.dino_rect.x = self.X_POS
         self.dino_rect.y = self.Y_POS
 
@@ -103,6 +106,9 @@ class Dinosaur:
     def draw(self, SCREEN):
         SCREEN.blit(self.image, (self.dino_rect.x, self.dino_rect.y))
 
+    def get_position(self):
+        return self.dino_rect.x, self.dino_rect.y, self.dino_duck, self.dino_jump
+
 
 class Cloud:
     def __init__(self):
@@ -135,6 +141,9 @@ class Obstacle:
 
     def draw(self, SCREEN):
         SCREEN.blit(self.image[self.type], self.rect)
+
+    def get_position(self):
+        return self.rect.x, self.rect.y
 
 
 class SmallCactus(Obstacle):
@@ -175,8 +184,9 @@ class DinoGameEnv(gym.Env):
         super(DinoGameEnv, self).__init__()
          # [Jump,Run, Duck] are the elemnts of the action space
         self.action_space = spaces.Discrete(3)
-        # observation space is the pygame window 
-        self.observation_space = spaces.Box(low=0, high=300, shape=(SCREEN_HEIGHT, SCREEN_WIDTH, 3), dtype=np.uint8)
+        # observation space is the top left x,y coordinates of the rectangle surrounding the dino,the state of the dino (ducking or jumping) 
+        # and the top left x,y coordinates of the rectangle surrounding the obstacle
+        self.observation_space = spaces.Box(low=np.array([0, 0, 0, 0, 0, 0]), high=np.array([SCREEN_WIDTH, SCREEN_HEIGHT, 1, 1, SCREEN_WIDTH, SCREEN_HEIGHT]), dtype=np.float32)
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
         pygame.display.set_caption("Dino Run")
         self.clock = pygame.time.Clock()
@@ -195,9 +205,10 @@ class DinoGameEnv(gym.Env):
 
     def step(self, action):
         global game_speed, obstacles
-        self.player.update(action)
 
+        self.player.update(action)
         if len(obstacles) == 0:
+            # randomly generate obstacles in the environment
             if random.randint(0, 2) == 0:
                 obstacles.append(SmallCactus(SMALL_CACTUS))
             elif random.randint(0, 2) == 1:
@@ -211,8 +222,11 @@ class DinoGameEnv(gym.Env):
                 pygame.time.delay(2000)
                 # reduction in reward if the dino collides with an obstacle
                 # the second term is to ensure that dino that run longer get a higher reward
-                self.reward -= 50 + 1000/self.points
+                self.reward -= 50 + 1000 / self.points
                 self.done = True
+            else:
+                # additonal reward for avoiding the obstacles
+                self.reward += 50
 
         self.cloud.update()
         self.points += 1
@@ -269,9 +283,12 @@ class DinoGameEnv(gym.Env):
         self.screen.blit(text, textRect)
 
     def _get_observation(self):
-        observation = pygame.surfarray.array3d(pygame.display.get_surface())
-        observation = np.transpose(observation, (1, 0, 2))
-        return observation
+        dino_x, dino_y, dino_duck, dino_jump = self.player.get_position()
+        if self.obstacles:
+            obstacle_x, obstacle_y = self.obstacles[0].get_position()
+        else:
+            obstacle_x, obstacle_y = SCREEN_WIDTH, 0  # No obstacle present
+        return np.array([dino_x, dino_y, dino_duck, dino_jump, obstacle_x, obstacle_y], dtype=np.float32)
 
     def close(self):
         pygame.quit()
