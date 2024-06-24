@@ -223,7 +223,7 @@ class DinoGameEnv(gym.Env):
                 pygame.time.delay(2000)
                 # reduction in reward if the dino collides with an obstacle
                 # the second term is to ensure that dino that run longer get a higher reward
-                self.reward -= (5 + 100 / self.points)
+                self.reward -= (1 + 1000 / self.points)
                 self.done = True
             else:
                 # additonal reward for avoiding the obstacles
