@@ -202,6 +202,7 @@ class DinoGameEnv(gym.Env):
         # the game ends when the dino collides with an obstacle
         self.done = False
         self.reward = 0
+        self.info = {}
 
     def step(self, action):
         global game_speed, obstacles
@@ -222,11 +223,11 @@ class DinoGameEnv(gym.Env):
                 pygame.time.delay(2000)
                 # reduction in reward if the dino collides with an obstacle
                 # the second term is to ensure that dino that run longer get a higher reward
-                self.reward -= (50 + 1000 / self.points)
+                self.reward -= (5 + 100 / self.points)
                 self.done = True
             else:
                 # additonal reward for avoiding the obstacles
-                self.reward += 10
+                self.reward += 1
 
         self.cloud.update()
         self.points += 1
@@ -235,9 +236,8 @@ class DinoGameEnv(gym.Env):
 
         # increase in reward as the game progresses
         self.reward += self.points / 100.0
-        info = {}
 
-        return self._get_observation() , self.reward, self.done, info
+        return self._get_observation() , self.reward, self.done, self.info
 
     def reset(self):
         global game_speed, obstacles
