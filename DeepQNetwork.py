@@ -1,15 +1,12 @@
 import numpy as np
-import gym
 import random
-import dino_world
+from dino_world.envs.DinoGame import DinoGameEnv
 import pygame
-
 import torch
 import torch.nn as nn
-
 from collections import deque
 
-# Define the DQN network
+# Define the DQN
 class DQN(nn.Module):
     def __init__(self, input_dim, output_dim):
         super(DQN, self).__init__()
@@ -43,7 +40,7 @@ class ReplayMemory:
 # Define the agent
 class Agent:
     def __init__(self, state_dim, action_dim, 
-                 gamma=0.95, lr=1e-3, batch_size=64, 
+                 gamma=0.99, lr=1e-3, batch_size=64, 
                  epsilon_start=1.0, epsilon_end=0.01, 
                  epsilon_decay=0.995, memory_capacity=10000):
         self.state_dim = state_dim
@@ -57,12 +54,14 @@ class Agent:
 
         self.policy_net = DQN(state_dim, action_dim)
         self.target_net = DQN(state_dim, action_dim)
+
+        self.loss_fn = nn.MSELoss()
         self.optimizer = torch.optim.Adam(self.policy_net.parameters(), lr=lr)
         self.target_net.load_state_dict(self.policy_net.state_dict())
         self.target_net.eval()
 
-    def select_action(self, state, epsilon = -1):
-        if random.random() > self.epsilon or epsilon == 0:
+    def select_action(self, state, best_action=False):
+        if random.random() > self.epsilon or best_action:
             with torch.no_grad():
                 state = torch.FloatTensor(state).unsqueeze(0)
                 q_values = self.policy_net(state)
@@ -91,9 +90,7 @@ class Agent:
         next_q_values = self.target_net(next_states).max(1)[0].detach()
         expected_q_values = rewards + (self.gamma * next_q_values * (1 - dones))
 
-        loss_fn = nn.MSELoss()
-        loss = loss_fn(q_values, expected_q_values.unsqueeze(1))
-
+        loss = self.loss_fn(q_values, expected_q_values.unsqueeze(1))
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
@@ -106,7 +103,7 @@ class Agent:
 
 
 # Training loop
-def learn(env, agent, num_episodes=1000, target_update_freq=10):
+def learn(env, agent, num_episodes=100, target_update_freq=10):
     for episode in range(num_episodes):
         state = env.reset()
         total_reward = 0
@@ -127,14 +124,10 @@ def learn(env, agent, num_episodes=1000, target_update_freq=10):
 
     env.close()
 
-
-
 # Main script
 if __name__ == "__main__":
-    env = gym.make('dino_world/DinoWorld-v0')
+    env = DinoGameEnv()
     state_dim = env.observation_space.shape[0]
     action_dim = env.action_space.n
-    agent = Agent(state_dim, action_dim)
-    # training for 100 episodes
-    # and updating the target network every 10 episodes
-    learn(env, agent, 100,10)
+    agent = Agent(state_dim, action_dim,lr=0.01)
+    learn(env, agent)
